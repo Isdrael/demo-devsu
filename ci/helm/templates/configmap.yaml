@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env
+  labels:
+    {{- include "demo-devsu.labels" . | nindent 4 }}
+data:
+{{- range .Values.configmap.db }}
+  {{ .key }}: {{ .value | quote }}
+{{- end }}

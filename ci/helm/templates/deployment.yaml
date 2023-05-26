@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "demo-devsu.fullname" . }}
+  labels:
+    {{- include "demo-devsu.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "demo-devsu.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "demo-devsu.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "demo-devsu.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          {{- if .Values.livenessProbe }}
+          env:
+          {{- range $name, $value := .Values.configMaps }}
+            {{- if $value.environment }}
+            {{- range $configKey, $keyEnvVarConfig := $value.environment.items }}
+            - name: {{ required "envVarName is required on configMaps items when using environment" $keyEnvVarConfig.envVarName | quote }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ $name }}
+                  key: {{ $configKey }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- range $name, $value := .Values.secrets }}
+            {{- if $value.environment }}
+            {{- range $secretKey, $keyEnvVarConfig := $value.environment.items }}
+            - name: {{ required "envVarName is required on secrets items when using environment" $keyEnvVarConfig.envVarName | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $name }}
+                  key: {{ $secretKey }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+            - name: TZ
+              value: "America/Guayaquil"
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe }}
+          readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 12 }}
+          {{- end }} 
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
