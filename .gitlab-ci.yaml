@@ -1,0 +1,84 @@
+stages:
+  - setup_var
+  - build_code
+  - units_tests
+  - build_docker
+  - build_helm_chart
+  - deploy_kubernetes
+
+before_script:
+  - export DOCKER_HOST=tcp://$HOST_DOCKER:2376 DOCKER_TLS_VERIFY=1
+
+setup_var: #stage para extraer las variables del archivo package.json 
+  stage: setup_var 
+  script:
+    - echo "APP_NAME=$(node -p "require('./package.json').name")" >> build.env
+    - echo "APP_VERSION=$(node -p "require('./package.json').version")" >> build.env
+  artifacts:
+    reports: 
+      dotenv: build.env
+
+build_code:
+  stage: build_code
+  script:
+    - echo "INICIO DE CONSTRUCCION DEL CODIGO"  
+    - npm install
+    - npm run start
+  only:
+    - develop  
+    - master
+
+units_tests:
+  stage: units_tests
+  script:
+    - echo "INICIO DE PRUEBAS UNITARIAS"
+    - npm run test
+    - echo "PRUEBAS UNITARIAS EXITOSAS"
+  only:
+    - develop
+    - master  
+
+build_docker: 
+  stage: build_docker
+  variables:
+    # Registry donde se almacena las imagenes docker
+    REGISTRY_HOST: 
+  script:
+    - echo "INICIA LA CONSTRUCCION DE LA IMAGEN DE DOCKER PARA EL APLICATIVO"
+    - docker build  -t $REGISTRY_HOST/$APP_NAME:$APP_VERSION -f ./ci/docker/Dockerfile .
+    - docker login -u $USR_REGISTRY -p $PWD_REGISTRY $REGISTRY_HOST
+    - docker push $REGISTRY_HOST/$APP_NAME:$APP_VERSION
+    - echo "LA IMAGEN SE CARGO CON EXITO AL REPOSITORIO DOCKER"
+  only:
+    - develop
+    - master
+
+build_helm_chart:
+  stage: build_docker
+  script:
+     - echo "INICIA LA CONSTRUCCION DEl CHART DE HELM PARA EL APLICATIVO"
+     - docker build --no-cache --build-arg GITLAB_PASS_ARG="$GITLAB_PASS" --build-arg GITLAB_USER_ARG="$GITLAB_USER" --build-arg PWD_HELM_ARG="$PWD_HELM" --build-arg USR_HELM_ARG="$USR_HELM"  -f ./ci/docker/DockerfileHelm .
+     - echo "EL CHART SE CARGO CON EXITO AL REPOSITORIO"
+  only:
+    - develop
+    - master
+     
+deploy_kubernetes:
+  stage:  deploy_kubernetes
+  variables:
+    KUBE_NAMESPACE: demo
+    # Nombre con el que se va a realizar el despliegue del Chart se mantiene el mismo nombre del aplicativo
+    HELM_RELEASE_NAME: "$APP_NAME"
+    # Repositorio donde se guarda los charts 
+    HELM_REPO: helm-repo
+    # Nombre del Chart se mantiene el mismo nombre del aplicativo
+    CHART_NAME: "$APP_NAME"
+  script:
+    - echo "INICIA EL DESPLIEGUE DEL APLICATIVO $APP_NAME EN KUBERNETES"
+    - echo "$KUBE_CONFIG" > $HOME/.kube/config
+    - kubectl get namespace $KUBE_NAMESPACE || kubectl create namespace $KUBE_NAMESPACE
+    - helm upgrade --install $HELM_RELEASE_NAME $HELM_REPO/$CHART_NAME --namespace $KUBE_NAMESPACE 
+    - echo "EL APLICATIVO SE DESPLEGO CON EXITO EN KUBERNETES"
+  only:
+    - develop
+    - master

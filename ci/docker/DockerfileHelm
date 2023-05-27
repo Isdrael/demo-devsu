@@ -1,0 +1,27 @@
+FROM alpine/helm:3.10.2
+WORKDIR /app
+COPY /ci/helm .
+
+ARG GITLAB_PASS_ARG
+ARG GITLAB_USER_ARG
+
+ARG PWD_HELM_ARG
+ARG USR_HELM_ARG
+
+ENV GITLAB_PASS=$GITLAB_PASS_ARG
+ENV GITLAB_USER=$GITLAB_USER_ARG
+
+ENV PWD_HELM=$PWD_HELM_ARG
+ENV USR_HELM=$USR_HELM_ARG
+
+RUN apk add git curl openssl bash --no-cache
+# AGREGAR EL REPOSITORIO DE HELM
+RUN helm repo add <nombre de repository> <URL del repositorio> --username $USR_HELM --password $PWD_HELM --force-update
+# INSTLAR EL PLUGIN HELM-NEXUS-PUSH QUE PERMITI CARGAR LOS CHARTS A LOS REPOSITORIOS HELM
+RUN helm plugin install --version <branch> https://<$GITLAB_USER>:<$GITLAB_PASS>@<$GITLAB_HOST>/<ruta>/helm-nexus-push.git
+# GENERAR LOS PERMISOS
+RUN chmod -R 777 /root/.local/share/helm/plugins/helm-nexus-push.git/push.sh
+# CREAR EL CHART
+RUN helm package .
+# CARGAR EL CHART EL REPO DE HELM
+RUN helm nexus-push . . -u $USR_HELM -p $PWD_HELM
