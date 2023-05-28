@@ -137,6 +137,33 @@ If the response is unsuccessful, we will receive status 400 and the following me
 }
 ```
 
+## Pipelines
+
+### Prerequisites
+
+- Gitlab
+- Gitlab runner
+- Configure varibles "$KUBE_CONFIG, $GITLAB_USER, $GITLAB_PASS, $PWD_HELM, $USR_HELM" on the Gitlab-server in the ci/cd section 
+- Install the packages "Kubectl,node,docker,helm" on the Gitlab server 
+- Configure the private and public DNS "demo-devsu.com"
+
+### Architecture
+
+![architecture](logos/arquitectura.png)
+
+### start pipelines
+
+- Push this repo on the Gitlab-server.
+
+```bash
+git push demo-devsu-test
+```
+Code is pushed on the Gitlab-server, and the pipeline stages begin to run.
+
+![stages](logos/pipelines.png)
+
+When the "deploy_kubernetes" pipeline finished, the application was made public at the URL https://demo-devsu.com.
+
 ## License
 
 Copyright © 2023 Devsu. All rights reserved.
