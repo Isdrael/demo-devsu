@@ -22,8 +22,8 @@ build_code:
   stage: build_code
   script:
     - echo "INICIO DE CONSTRUCCION DEL CODIGO"  
-    - npm install
-    - npm run start
+    - docker build  -t demo -f ./ci/docker/Dockerfile .
+    - echo "CONSTRUCCION EXITOSA"
   only:
     - develop  
     - master
@@ -32,7 +32,7 @@ units_tests:
   stage: units_tests
   script:
     - echo "INICIO DE PRUEBAS UNITARIAS"
-    - npm run test
+    - docker run demo npm test
     - echo "PRUEBAS UNITARIAS EXITOSAS"
   only:
     - develop
@@ -42,7 +42,7 @@ build_docker:
   stage: build_docker
   variables:
     # Registry donde se almacena las imagenes docker
-    REGISTRY_HOST: 
+    REGISTRY_HOST: registrydocker
   script:
     - echo "INICIA LA CONSTRUCCION DE LA IMAGEN DE DOCKER PARA EL APLICATIVO"
     - docker build  -t $REGISTRY_HOST/$APP_NAME:$APP_VERSION -f ./ci/docker/Dockerfile .
