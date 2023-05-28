@@ -156,7 +156,7 @@ If the response is unsuccessful, we will receive status 400 and the following me
 - Push this repo on the Gitlab-server.
 
 ```bash
-git push demo-devsu-test
+git push demo-devsu
 ```
 Code is pushed on the Gitlab-server, and the pipeline stages begin to run.
 
